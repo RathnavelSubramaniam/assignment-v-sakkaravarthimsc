@@ -1,0 +1,272 @@
+---
+output:
+  
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+        
+  pdf_document:
+    
+    fig_caption: true
+    fig_crop: false
+  word_document: default
+params:
+    printcode: false
+---
+
+
+---
+title: "UNIT_5_assignment"
+author: "Sakkaravarthi"
+date: "6.10.2024"
+output: html_document
+---
+
+
+
+```{r}
+library(ISLR)
+library(MASS)
+library(class)
+library(boot)
+library(glmnet)
+library(leaps)
+library(pls)
+
+```
+
+```{r}
+boston=Boston
+```
+
+##### 11) We will now try to predict per capita crime rate in the Boston data set.
+
+a) Try out some of the regression methods explored in this chapter,such as best subset selection, the lasso, ridge regression, and PCR. Present and discuss results for the approaches that you consider.
+     
+     Linear model:
+```{r}
+fit_Q11_lm_c6=lm(crim~.,data = boston)
+summary(fit_Q11_lm_c6)
+```
+
+- In this model We can see that the variable zn,dis,rad,black,medv are having relationship with response.
+
+  Subset selection - best:
+```{r}
+bs_Q11_c6=regsubsets(crim~.,data = boston,nvmax = 13)
+bs_Q11_c6_summary<-summary(bs_Q11_c6)
+bs_Q11_c6_summary$adjr2
+```
+
+
+```{r}
+par(mfrow=c(1,3))
+plot(bs_Q11_c6_summary$cp,xlab = "Number of variable",ylab="C_p",type = "l")
+points(which.min(bs_Q11_c6_summary$cp),bs_Q11_c6_summary$cp[which.min(bs_Q11_c6_summary$cp)],col="purple",cex=3,pch=20)
+plot(bs_Q11_c6_summary$bic,xlab = "Number of variable",ylab="BIC",type = "l")
+points(which.min(bs_Q11_c6_summary$bic),bs_Q11_c6_summary$bic[which.min(bs_Q11_c6_summary$bic)],col="purple",cex=3,pch=20)
+plot(bs_Q11_c6_summary$adjr2,xlab = "Number of variable",ylab="adjr2",type = "l")
+points(which.max(bs_Q11_c6_summary$adjr2),bs_Q11_c6_summary$adjr2[which.max(bs_Q11_c6_summary$adjr2)],col="purple",cex=3,pch=20)
+```
+
+
+```{r}
+coef(bs_Q11_c6,which.min(bs_Q11_c6_summary$cp))
+```
+
+  subset selection - forward:
+```{r}
+fws_Q11_c6=regsubsets(crim~.,data = boston,nvmax = 13,method="forward")
+fws_Q11_c6_summary<-summary(fws_Q11_c6)
+fws_Q11_c6_summary$adjr2
+```
+
+
+```{r}
+par(mfrow=c(1,3))
+plot(fws_Q11_c6_summary$cp,xlab = "Number of variables",ylab = "C_p",type = "l")
+points(which.min(fws_Q11_c6_summary$cp),fws_Q11_c6_summary$cp[which.min(fws_Q11_c6_summary$cp)],col="purple",cex=2,pch=20)
+plot(fws_Q11_c6_summary$bic,xlab = "Number of variables",ylab = "bic",type = "l")
+points(which.min(fws_Q11_c6_summary$bic),fws_Q11_c6_summary$bic[which.min(fws_Q11_c6_summary$bic)],col="purple",cex=2,pch=20)
+plot(fws_Q11_c6_summary$adjr2,xlab = "Number of variables",ylab = "adjr2",type = "l")
+points(which.max(fws_Q11_c6_summary$adjr2),fws_Q11_c6_summary$adjr2[which.max(fws_Q11_c6_summary$adjr2)],col="purple",cex=2,pch=20)
+```
+
+
+```{r}
+coef(fws_Q11_c6,which.min(fws_Q11_c6_summary$cp))
+```
+
+  subset selection - backward:
+```{r}
+bws_Q11_c6=regsubsets(crim~.,data = boston,nvmax = 13,method="backward")
+bws_Q11_c6_summary<-summary(bws_Q11_c6)
+bws_Q11_c6_summary$outmat
+```
+
+
+```{r}
+par(mfrow=c(1,3))
+plot(bws_Q11_c6_summary$cp,xlab = "Number of variables",ylab = "c_p",type = "l")
+points(which.min(bws_Q11_c6_summary$cp),bws_Q11_c6_summary$cp[which.min(bws_Q11_c6_summary$cp)],col="orange",cex=3,pch=20)
+plot(bws_Q11_c6_summary$bic,xlab = "Number of variables",ylab = "BIC",type = "l")
+points(which.min(bws_Q11_c6_summary$bic),bws_Q11_c6_summary$bic[which.min(bws_Q11_c6_summary$bic)],col="orange",cex=3,pch=20)
+plot(bws_Q11_c6_summary$adjr2,xlab = "Number of variables",ylab = "adjr2",type = "l")
+points(which.max(bws_Q11_c6_summary$adjr2),bws_Q11_c6_summary$adjr2[which.max(bws_Q11_c6_summary$adjr2)],col="orange",cex=3,pch=20)
+```
+
+
+```{r}
+coef(bws_Q11_c6,which.max(bws_Q11_c6_summary$adjr2))
+```
+
+- the subset selection the three method give similar variable's to use with response.
+
+  Regularization - ridge:
+```{r}
+set.seed(2)
+boston_matrix_crim<-model.matrix(crim~.,data = boston)[,-1]
+```
+
+
+```{r}
+ridge_c6_Q11=cv.glmnet(boston_matrix_crim,boston$crim,alpha=0)
+bestlam_c6_ridge<-ridge_c6_Q11$lambda.min
+bestlam_c6_ridge
+```
+
+
+```{r}
+coef(ridge_c6_Q11,s=bestlam_c6_ridge)
+```
+
+- The ridge method say's tax,black,age this are near to zero,so this variable's can exclude.
+  
+  Regularization - lasso:
+```{r}
+set.seed(1)
+lasso_c6_Q11=cv.glmnet(boston_matrix_crim,boston$crim,alpha=1)
+bestlam_c6_lasso<-lasso_c6_Q11$lambda.min
+bestlam_c6_lasso
+```
+
+
+```{r}
+coef(lasso_c6_Q11,s=bestlam_c6_lasso)
+```
+
+- In the lasso method it say's age and tax is exact zero.
+
+  Dimension Reduction - pcr:
+```{r}
+set.seed(2)
+pcr_c6_Q11=pcr(crim~.,data=boston,scale=TRUE,validation="CV")
+pcr_c6_Q11summary<- summary(pcr_c6_Q11)
+pcr_c6_Q11summary
+```
+
+
+
+```{r}
+validationplot(pcr_c6_Q11,val.type = "MSEP")
+```
+
+
+```{r}
+loadingspcr_c6<-pcr_c6_Q11$loadings[,1:8]
+loadingspcr_c6
+```
+
+- In pcr model say's that taking 3 or 8 component are best
+
+  Dimension Reduction - pls:
+```{r}
+
+set.seed(2)
+plsr_c6_Q11=plsr(crim~.,data=boston,scale=TRUE,validation="CV")
+plsr_c6_Q11summary<- summary(plsr_c6_Q11)
+plsr_c6_Q11summary
+```
+
+
+```{r}
+validationplot(plsr_c6_Q11,val.type = "MSEP")
+```
+
+
+```{r}
+loadingsplsr_c6_Q11=plsr_c6_Q11$loadings[,1:2]
+loadingsplsr_c6_Q11
+```
+
+- In plsr model say's that taking  2 component are best
+
+
+b) Propose a model (or set of models) that seem to perform well on this data set, and justify your answer. Make sure that you are
+evaluating model performance using validation set error, crossvalidation, or some other reasonable alternative, as opposed to
+using training error.
+
+
+```{r}
+tr_bos=sample(nrow(boston),nrow(boston)*0.70)
+```
+
+
+```{r}
+tr_Q11b_bos=boston[tr_bos,]
+```
+
+
+```{r}
+te_Q11b_bos=boston[-tr_bos,]
+```
+
+ 
+  Regularization - ridge:
+```{r}
+set.seed(3)
+tr_bos_matrix=model.matrix(crim~.,data = tr_Q11b_bos)[,-1]
+te_bos_matrix=model.matrix(crim~.,data = te_Q11b_bos)[,-1]
+```
+
+
+```{r}
+Q_11b_ridge=cv.glmnet(tr_bos_matrix,tr_Q11b_bos$crim,alpha=0)
+bestlam_Q11b_ridge=Q_11b_ridge$lambda.min
+```
+
+
+```{r}
+pred_Q11b_ridge=predict(Q_11b_ridge,s=bestlam_Q11b_ridge,newx = te_bos_matrix)
+test_error_Q11br=mean((te_Q11b_bos$crim- pred_Q11b_ridge)^2)
+```
+
+
+```{r}
+rmse_Q11b_ridge= sqrt(test_error_Q11br)
+(rmse_Q11b_ridge/mean(te_Q11b_bos$crim))*100
+```
+
+  Regularization - lasso:
+```{r}
+Q_11b_lasso=cv.glmnet(tr_bos_matrix,tr_Q11b_bos$crim,alpha=1)
+bestlam_Q11b_lasso=Q_11b_lasso$lambda.min
+```
+
+
+```{r}
+pred_Q11b_lasso=predict(Q_11b_lasso,s=bestlam_Q11b_lasso,newx = te_bos_matrix)
+test_error_Q11bl=mean((te_Q11b_bos$crim - pred_Q11b_lasso)^2)
+```
+
+
+```{r}
+rmse_Q11b_lasso= sqrt(test_error_Q11bl)
+(rmse_Q11b_lasso/mean(te_Q11b_bos$crim))*100
+```
+
+c) Does your chosen model involve all of the features in the data set? Why or why not?
+
+- The chosen model does not involve all of the features in the data set, because some not statistically significant to response.
